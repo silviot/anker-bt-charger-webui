@@ -21,7 +21,7 @@
   }
 </script>
 
-{#if !snap}
+{#if !snap || charger.state === "idle"}
   <section class="hero">
     <h1>Your Anker charger, in your browser.</h1>
     <p class="lede">See how much power each port is delivering, switch ports off, and change the charger's settings. You don't need the app or an account, and nothing leaves your computer.</p>
