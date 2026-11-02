@@ -184,7 +184,8 @@ class Charger {
     const device = (await navigator.bluetooth.getDevices().catch(() => [])).find((d) => d.id === id);
     if (!device || this.state !== "idle") return;
     this.#useDevice(device);
-    await this.#run(() => this.#open(device, 2), { label: "Reconnecting…", quiet: true });
+    // More tries than a click gets: a link from before a reload takes a moment to close.
+    await this.#run(() => this.#open(device, 5), { label: "Reconnecting…", quiet: true });
   }
 
   #ended(text) {
