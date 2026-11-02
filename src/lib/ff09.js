@@ -516,7 +516,8 @@ export class Session {
   async handshake() {
     const ts = epochBytes();
     this.onStep("hello");
-    await this.request(requests.hello(ts));
+    // Normally about 0.3 s. A link left over from an earlier session gets no reply at all.
+    await this.request(requests.hello(ts), 2500);
     this.onStep("params");
     await this.request(requests.params(ts));
     this.onStep("identity");

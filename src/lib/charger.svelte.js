@@ -72,7 +72,8 @@ class Charger {
   }
 
   // Quiet runs are automatic ones: a failure there does not show an error.
-  async #run(open, { label = "Connecting…", quiet = false, onLive = () => {}, onFail = () => {} } = {}) {
+  async #run(open, options = {}) {
+    const { label = "Connecting…", quiet = false, onLive = () => {}, onFail = () => {}, retried = false } = options;
     this.reset();
     this.state = "connecting";
     this.statusText = label;
@@ -101,9 +102,20 @@ class Charger {
       onLive();
       await session.poll();
     } catch (e) {
-      onFail();
       // A newer attempt already took over, so this old one has nothing to clean up.
-      if (session && this.session !== session) return;
+      if (session && this.session !== session) {
+        onFail();
+        return;
+      }
+      // The link can outlive a page reload, and the charger then ignores a new handshake
+      // because it still expects the old session key. Drop that link and try once more.
+      if (session && this.#device && this.#wanted && !retried && this.state === "connecting") {
+        this.session = null;
+        this.#device.gatt.disconnect();
+        await sleep(1500);
+        if (this.#wanted) return this.#run(open, { ...options, retried: true });
+      }
+      onFail();
       // The person closed the device chooser. This is not an error.
       if (e.name === "NotFoundError") {
         this.#ended("Not connected");
