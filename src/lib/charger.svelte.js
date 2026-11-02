@@ -73,7 +73,7 @@ class Charger {
 
   // Quiet runs are automatic ones: a failure there does not show an error.
   async #run(open, options = {}) {
-    const { label = "Connecting…", quiet = false, onLive = () => {}, onFail = () => {}, retried = false } = options;
+    const { label = "Connecting…", quiet = false, onLive = () => {}, onFail = () => {}, retried = 0 } = options;
     this.reset();
     this.state = "connecting";
     this.statusText = label;
@@ -107,13 +107,14 @@ class Charger {
         onFail();
         return;
       }
-      // The link can outlive a page reload, and the charger then ignores a new handshake
-      // because it still expects the old session key. Drop that link and try once more.
-      if (session && this.#device && this.#wanted && !retried && this.state === "connecting") {
+      // A link can outlive the session that opened it, for example across a page reload.
+      // Chrome then fails with "GATT Error Unknown", or the charger ignores a new handshake
+      // because it still expects the old key. Drop the link, give it time to close, and retry.
+      if (session && this.#device && this.#wanted && retried < 3 && this.state === "connecting") {
         this.session = null;
         this.#device.gatt.disconnect();
-        await sleep(1500);
-        if (this.#wanted) return this.#run(open, { ...options, retried: true });
+        await sleep(2500);
+        if (this.#wanted) return this.#run(open, { ...options, retried: retried + 1 });
       }
       onFail();
       // The person closed the device chooser. This is not an error.
