@@ -126,8 +126,12 @@ class Charger {
         const service = await server.getPrimaryService(ff.SERVICE);
         const write = await service.getCharacteristic(ff.WRITE_CHAR);
         const notify = await service.getCharacteristic(ff.NOTIFY_CHAR);
-        // Start listening before any request goes out.
-        return { transport: bluetoothTransport(device, write, notify), start: () => notify.startNotifications() };
+        // Start listening before any request goes out. On a repeat connection, Chrome on Linux
+        // resolves startNotifications() but delivers nothing unless they are stopped first.
+        return { transport: bluetoothTransport(device, write, notify), start: async () => {
+          await notify.stopNotifications().catch(() => {});
+          await notify.startNotifications();
+        } };
       } catch (e) {
         lastError = e;
       }
