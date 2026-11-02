@@ -230,3 +230,6 @@ progress { width: 100%; max-width: 380px; margin-top: 10px; display: block; }
   .top-row, .top nav { padding-left: 14px; padding-right: 14px; }
   main { padding-left: 14px; padding-right: 14px; }
 }
+.gate { border: 0; margin: 0; padding: 0; min-width: 0; }
+.gate:disabled { opacity: .75; }
+.lost { position: sticky; top: 92px; z-index: 1; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 12px; margin: 0 0 14px; font-size: 14px; max-width: none; }

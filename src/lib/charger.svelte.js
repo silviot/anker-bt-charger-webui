@@ -7,7 +7,7 @@ const HISTORY_MS = 120_000;
 const KEEP_FIRST = 14; // The handshake stays visible during long sessions.
 const KEEP_LAST = 80;
 const REMEMBER = "chrgr-device";
-const RECONNECT_DELAYS = [1500, 3000, 5000, 8000];
+const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000, 30000];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const remember = (id) => {
   try {
@@ -48,6 +48,7 @@ class Charger {
   keys = $state.raw(null);
   errorReport = $state(null);
   sim = $state.raw(null);
+  lost = $state(false); // The link dropped by itself. The last readings stay on screen.
   session = null;
   #device = null;
   #wanted = false;
@@ -73,8 +74,10 @@ class Charger {
 
   // Quiet runs are automatic ones: a failure there does not show an error.
   async #run(open, options = {}) {
-    const { label = "Connecting…", quiet = false, onLive = () => {}, onFail = () => {}, retried = 0 } = options;
-    this.reset();
+    const { label = "Connecting…", quiet = false, keep = false, onLive = () => {}, onFail = () => {}, retried = 0 } = options;
+    if (keep) this.notice = "";
+    else this.reset();
+    this.lost = keep;
     this.state = "connecting";
     this.statusText = label;
     let session = null;
@@ -98,6 +101,7 @@ class Charger {
       if (this.session !== session) throw new Error("The connection was lost");
       this.state = "live";
       this.statusText = "Connected";
+      this.lost = false;
       if (this.#device) remember(this.#device.id);
       onLive();
       await session.poll();
@@ -115,6 +119,15 @@ class Charger {
         this.#device.gatt.disconnect();
         await sleep(2500);
         if (this.#wanted) return this.#run(open, { ...options, retried: retried + 1 });
+      }
+      // Replies stopped on a working session: treat that like a dropped link.
+      if (this.state === "live" && this.#device && this.#wanted) {
+        const device = this.#device;
+        this.session = null;
+        device.gatt.disconnect();
+        this.#ended("The charger stopped replying");
+        this.#reconnect(device);
+        return;
       }
       onFail();
       // The person closed the device chooser. This is not an error.
@@ -162,19 +175,23 @@ class Charger {
   async #linkLost(device) {
     if (device !== this.#device || !this.session) return;
     this.#ended("The charger disconnected");
+    await this.#reconnect(device);
+  }
+
+  async #reconnect(device) {
+    this.lost = true;
     for (const delay of RECONNECT_DELAYS) {
       this.state = "connecting";
       this.statusText = "Reconnecting…";
       await sleep(delay);
       if (!this.#wanted || device !== this.#device) return;
       const live = await new Promise((resolve) => {
-        this.#run(() => this.#open(device, 1), { label: "Reconnecting…", quiet: true, onLive: () => resolve(true), onFail: () => resolve(false) });
+        this.#run(() => this.#open(device, 1), { label: "Reconnecting…", quiet: true, keep: true, onLive: () => resolve(true), onFail: () => resolve(false) });
       });
       if (live) return;
     }
     if (!this.#wanted) return;
     this.#ended("Not connected");
-    this.notice = "The charger disconnected, and reconnecting failed. Click Connect to try again.";
   }
 
   // Reconnects on page load to the charger used last time, with no chooser. This needs
@@ -228,6 +245,7 @@ class Charger {
     this.#wanted = false;
     this.#device = null;
     remember(null);
+    this.lost = false;
     this.#ended("Not connected");
     await s?.stop();
     if (device?.gatt.connected) device.gatt.disconnect();

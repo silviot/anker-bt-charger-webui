@@ -54,6 +54,12 @@
 </header>
 
 <main id="view" tabindex="-1">
+  {#if charger.lost}
+    <p class="lost" role="status">
+      {#if charger.state === "connecting"}Connection lost. Reconnecting… You can keep reading. Values below may be out of date, and controls are off for now.
+      {:else}Connection lost, and reconnecting failed. Values below are out of date. <button class="small" onclick={() => charger.connectBluetooth()}>Connect again</button>{/if}
+    </p>
+  {/if}
   {#if charger.notice}
     <p class="notice" role="alert">{charger.notice}</p>
   {/if}

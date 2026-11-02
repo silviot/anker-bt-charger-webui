@@ -3,8 +3,11 @@
   let { children, what = "this" } = $props();
 </script>
 
-{#if charger.connected && charger.snapshot}
-  {@render children()}
+{#if (charger.connected || charger.lost) && charger.snapshot}
+  <!-- Stays mounted through a reconnect, so open sections and the scroll position survive. -->
+  <fieldset class="gate" disabled={!charger.connected}>
+    {@render children()}
+  </fieldset>
 {:else if charger.state === "connecting"}
   <div class="card empty"><p>Connecting to the charger…</p></div>
 {:else}
