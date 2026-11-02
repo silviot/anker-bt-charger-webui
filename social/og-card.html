@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Source of og-image.png. Render at 1200x630: see social/render.mjs. -->
+<html lang="en"><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}
+body{margin:0;width:1200px;height:630px;background:#1a1a19;color:#f0efec;font-family:system-ui,sans-serif;padding:56px 64px;display:flex;flex-direction:column;justify-content:space-between}
+.eyebrow{font-size:26px;color:#c3c2b7;margin:0 0 12px}
+h1{font-size:70px;line-height:1.06;margin:0;letter-spacing:-.015em}
+.ports{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.port{background:#242422;border-radius:12px;padding:14px 22px;font-size:26px;font-weight:650;display:flex;align-items:center;gap:12px}
+.port i{width:18px;height:18px;border-radius:4px}
+.port b{margin-left:auto;font-size:38px;font-variant-numeric:tabular-nums}
+.frame{display:flex;gap:6px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.seg{border-radius:8px;padding:10px 12px;font-size:30px;font-weight:600;white-space:nowrap;flex:auto;text-align:center}
+.seg small{display:block;font:500 17px system-ui,sans-serif;color:#d8d7cf;margin-top:2px}
+</style></head><body>
+<div><p class="eyebrow">Works in your browser · no app · no account</p>
+<h1>Your Anker Prime 160W charger, in your browser</h1></div>
+<div class="ports">
+<div class="port"><i style="background:#3987e5"></i>C1<b>64.8 W</b></div>
+<div class="port"><i style="background:#d95926"></i>C2<b>18.0 W</b></div>
+<div class="port"><i style="background:#199e70"></i>C3<b>15.3 W</b></div>
+</div>
+<div class="frame">
+<div class="seg" style="background:#44433e">ff 09<small>magic</small></div>
+<div class="seg" style="background:#1f3a5c">0c 00<small>length</small></div>
+<div class="seg" style="background:#363531">03 00<small>header</small></div>
+<div class="seg" style="background:#1c4636">01<small>group</small></div>
+<div class="seg" style="background:#5c2f1b">40 29<small>command</small></div>
+<div class="seg" style="background:#452e54">aa bb<small>encrypted body</small></div>
+<div class="seg" style="background:#5a2a3d">80<small>checksum</small></div>
+</div>
+</body></html>

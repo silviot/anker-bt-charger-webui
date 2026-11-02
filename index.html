@@ -3,174 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inside the Anker Prime 160W Bluetooth protocol</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="style.css">
+<title>Anker Prime 160W in your browser</title>
+<meta name="description" content="See and control an Anker Prime 160W charger from your browser, with no app or account. Developers can also explore its Bluetooth protocol, byte by byte.">
+<link rel="canonical" href="https://silvio-chrgr.pgs.sh/">
+<meta name="author" content="Silvio Tomatis">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fcfcfb">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a19">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anker charger web UI">
+<meta property="og:url" content="https://silvio-chrgr.pgs.sh/">
+<meta property="og:title" content="Anker Prime 160W in your browser">
+<meta property="og:description" content="See and control the charger with no app or account, and explore its Bluetooth protocol. Includes a simulator.">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="https://silvio-chrgr.pgs.sh/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Anker Prime 160W in your browser: live power for three USB-C ports above one protocol frame, split into labelled, colored bytes.">
+<meta name="twitter:card" content="summary_large_image">
+
 </head>
 <body>
-<header class="hero">
-  <p class="eyebrow">Anker Prime 160W · A2687 · Bluetooth LE</p>
-  <h1>Your charger speaks a small, partly encrypted protocol. Here it is, running live.</h1>
-  <p class="lede">This page connects to the charger from your browser, runs the handshake, and shows every byte. There is no app, no account and no server. It also has a simulated charger, so you can explore without any hardware.</p>
-</header>
-
-<main>
-<section id="live" aria-labelledby="live-h">
-  <h2 id="live-h">Live</h2>
-  <div class="controls">
-    <button id="connect" class="primary">Connect to charger</button>
-    <button id="demo">Use simulated charger</button>
-    <button id="stop" hidden>Disconnect</button>
-    <span id="status" role="status">Not connected</span>
-  </div>
-  <p id="notice" class="notice" hidden></p>
-  <dl id="identity" class="identity" hidden></dl>
-
-  <div class="stats">
-    <div class="total"><span class="label">Total output</span><span id="total" class="big">–</span></div>
-    <div id="ports" class="ports"></div>
-  </div>
-
-  <div id="sim-controls" class="sim" hidden>
-    <h3>Simulated devices</h3>
-    <p class="muted">Change a load. The simulator sends the new values through the same code path as the real charger.</p>
-    <div id="sliders" class="sliders"></div>
-  </div>
-
-  <figure class="chart">
-    <figcaption><strong>Output power, last two minutes</strong> <span class="muted">(watts, stacked by port)</span></figcaption>
-    <div id="legend" class="legend"></div>
-    <div id="chart-wrap" class="chart-wrap"><svg id="chart" role="img" aria-label="Stacked area chart of output power by port"></svg><div id="tip" class="tip" hidden></div></div>
-    <details><summary>Show recent readings as a table</summary><table id="table"><thead><tr><th>Time</th><th>C1 (W)</th><th>C2 (W)</th><th>C3 (W)</th><th>Total (W)</th></tr></thead><tbody></tbody></table></details>
-  </figure>
-</section>
-
-<section aria-labelledby="how-h">
-  <h2 id="how-h">How it works</h2>
-  <p>A phone or browser talks to the charger in four layers. Each layer solves one problem.</p>
-  <ol class="layers">
-    <li><strong>Bluetooth LE</strong><span>Moves bytes. One characteristic for writing, one for notifications.</span></li>
-    <li><strong>Frames</strong><span>Mark where a message starts and ends, and which command it is.</span></li>
-    <li><strong>AES-GCM</strong><span>Encrypts the handshake and every request. The charger's telemetry replies skip it.</span></li>
-    <li><strong>TLV fields</strong><span>Label each value inside the decrypted body.</span></li>
-  </ol>
-
-  <h3>1. Finding the charger</h3>
-  <p>The charger advertises service <code>0xFF09</code> and a name that contains its serial number. No Bluetooth pairing is needed. After connecting, a client uses one GATT service:</p>
-  <table class="plain">
-    <tr><th>Service</th><td><code>8c850001-0302-41c5-b46e-cf057c562025</code></td></tr>
-    <tr><th>Write</th><td><code>8c850002-…</code> (write without response)</td></tr>
-    <tr><th>Notify</th><td><code>8c850003-…</code> (replies arrive here)</td></tr>
-  </table>
-  <p>The charger accepts one connection at a time. If the Anker app is connected, the charger can disappear from scans.</p>
-
-  <h3>2. The handshake</h3>
-  <p>The first messages use a key that is the same in all units. They exchange identity data, then agree a fresh session key. Watch the steps change as you connect:</p>
-  <ol id="steps" class="steps">
-    <li data-step="hello"><code>0x0001</code> <b>Hello</b> <span>Sends the current time.</span></li>
-    <li data-step="params"><code>0x0003</code> <b>Parameters</b> <span>Sends fixed parameter values.</span></li>
-    <li data-step="identity"><code>0x0029</code> <b>Identity</b> <span>The reply has the serial number and firmware.</span></li>
-    <li data-step="setup"><code>0x0005</code> <b>Setup</b> <span>Sends more fixed values. Their meaning is not documented.</span></li>
-    <li data-step="keyExchange"><code>0x0021</code> <b>Key exchange</b> <span>Each side sends a temporary P-256 public key.</span></li>
-    <li data-step="session"><b>Session key active</b> <span>From here, all frames use the new key.</span></li>
-  </ol>
-  <div id="keys" class="keys" hidden>
-    <h4>This session's key exchange</h4>
-    <dl id="key-values"></dl>
-    <p class="muted">The session key is bytes 0–15 of the shared secret. The nonce is bytes 16–27. There is no key derivation function. These values exist only in this tab and end with the session.</p>
-  </div>
-
-  <h3>3. Frames</h3>
-  <p>Every message has the same shape. Multi-byte numbers are little-endian. The last 16 bytes of an encrypted body are the GCM authentication tag. Frames with no encryption flag have no tag.</p>
-  <div class="bytes-key">
-    <span class="seg magic">FF 09 start</span><span class="seg len">length</span><span class="seg hdr">03 00 fixed</span><span class="seg grp">group</span><span class="seg cmd">flags + command</span><span class="seg ct">encrypted body</span><span class="seg tag">GCM tag</span><span class="seg sum">XOR checksum</span>
-  </div>
-  <p>The high byte of the command also holds two flags: <code>0x40</code> means encrypted, and <code>0x08</code> means this is a reply. So <code>48 29</code> on the wire is an encrypted reply to command <code>0x0029</code>.</p>
-  <p><strong>A surprise:</strong> on the test unit, the charger sends its <code>0x0200</code> replies with no encryption, even after the session key is active. The browser's request is encrypted, but the answer is not. Look at the frame sizes in the Traffic list to see this.</p>
-
-  <h3>4. Fields and telemetry</h3>
-  <p>A decrypted body is a list of type, length and value items. For the charger's snapshot, each port is a 7-byte structure after a type byte:</p>
-  <div class="worked">
-    <code><span class="seg tag">A7</span> <span class="seg len">08</span> <span class="seg hdr">04</span> <span class="seg grp">01</span> <span class="seg cmd">E0 4E</span> <span class="seg ct">FB 02</span> <span class="seg sum">FE 05</span></code>
-    <ul>
-      <li><span class="seg tag">A7</span> Port C3 (<code>A5</code> is C1, <code>A6</code> is C2)</li>
-      <li><span class="seg len">08</span> 8 bytes follow</li>
-      <li><span class="seg hdr">04</span> Value type: raw bytes</li>
-      <li><span class="seg grp">01</span> Mode: active (0 means idle)</li>
-      <li><span class="seg cmd">E0 4E</span> 0x4EE0 = 20192 mV = <b>20.192 V</b></li>
-      <li><span class="seg ct">FB 02</span> 0x02FB = 763 mA = <b>0.763 A</b></li>
-      <li><span class="seg sum">FE 05</span> 0x05FE = 1534 centiwatts = <b>15.34 W</b></li>
-    </ul>
-  </div>
-  <p class="muted">That example is a real reading from a test A2687. 20.192 V × 0.763 A = 15.41 W, close to the reported value.</p>
-</section>
-
-<section aria-labelledby="lab-h">
-  <h2 id="lab-h">Frame lab</h2>
-  <p>Select any frame from the session, or paste one. Then try changing a digit. The XOR checksum detects the change in any frame, and the GCM tag also detects it in an encrypted frame. Telemetry replies have only the checksum, so you can change a reading and the frame still decodes.</p>
-  <div class="lab">
-    <div>
-      <div class="log-head"><h3>Traffic</h3><span class="muted" id="log-count">No frames yet</span></div>
-      <ol id="log" class="log" tabindex="0" aria-label="Frames in this session"></ol>
-    </div>
-    <div>
-      <h3>Dissector</h3>
-      <label for="frame-input">Frame in hex</label>
-      <textarea id="frame-input" rows="4" spellcheck="false"></textarea>
-      <div class="key-choice">
-        <label>Decrypt with
-          <select id="key-select"><option value="initial">Fixed initial key</option><option value="session" disabled>This session's key</option></select>
-        </label>
-      </div>
-      <div id="dissect-bytes" class="dissect-bytes"></div>
-      <ul id="dissect-checks" class="checks"></ul>
-      <table id="dissect-tlv" class="plain"><thead><tr><th>Type</th><th>Value</th><th>Meaning</th></tr></thead><tbody></tbody></table>
-    </div>
-  </div>
-</section>
-
-<section aria-labelledby="sec-h">
-  <h2 id="sec-h">What this says about security</h2>
-  <ul>
-    <li><strong>Anyone in Bluetooth range can read your port data.</strong> This handshake needed no pairing, password or account. It reads voltage, current, power, serial number and firmware. Telemetry replies are also unencrypted on the test unit, so the session key does not protect them.</li>
-    <li><strong>The first key is not secret.</strong> It is the same fixed value for every client, and it is public in the projects below.</li>
-    <li><strong>The key exchange has no authentication.</strong> Neither side proves who it is, so an attacker in the middle could likely read the encrypted traffic. I did not test this attack.</li>
-    <li><strong>One nonce is used for a whole session.</strong> AES-GCM requires a new nonce for each message. Reusing one weakens both its encryption and its tamper detection. The risk here is small, because this data is not very sensitive.</li>
-    <li><strong>Settings need more.</strong> Other projects report that an account ID is required for pushed telemetry and settings. I did not test those commands.</li>
-  </ul>
-</section>
-
-<section aria-labelledby="limits-h">
-  <h2 id="limits-h">What this page does and does not do</h2>
-  <ul>
-    <li><strong>It does not change settings.</strong> It sends only six commands: <code>0x0001</code>, <code>0x0003</code>, <code>0x0029</code>, <code>0x0005</code>, <code>0x0021</code> and <code>0x0200</code>. The meaning of some values in <code>0x0003</code> and <code>0x0005</code> is not documented, but the official handshake uses them too.</li>
-    <li><strong>It leaves out the time zone command.</strong> Other clients send <code>0x0022</code>. It was not needed here, and it could change the charger's state.</li>
-    <li><strong>It polls and does not stream.</strong> It asks for <code>0x0200</code> once per second. The <code>0x0300</code> push stream needs your account ID, according to other projects. A wrong ID can affect the lock-screen image, so this page never sends one.</li>
-    <li><strong>It was tested on one unit.</strong> That unit has firmware <code>v0.0.3.7</code> and a name that starts with <code>ASHDJV</code>. Other projects document <code>ASHDJW</code> and firmware <code>v0.0.5.x</code>. Other firmware can behave differently.</li>
-    <li><strong>Attached-device names are not shown.</strong> The test unit's snapshot did not include the fields that identify attached devices.</li>
-  </ul>
-  <h3>If connecting fails</h3>
-  <ul>
-    <li>Use Chrome, Edge or another Chromium browser on a desktop computer. Firefox and Safari do not support Web Bluetooth.</li>
-    <li>Fully quit the Anker app on your phone, or turn off the phone's Bluetooth.</li>
-    <li>On Linux, if the browser reports that Web Bluetooth is unavailable, enable <code>chrome://flags/#enable-experimental-web-platform-features</code>.</li>
-    <li>On Linux, if scans find nothing and the kernel log shows <code>Opcode 0x2041 failed: -16</code>, restart the adapter: <code>bluetoothctl power off</code>, then <code>bluetoothctl power on</code>.</li>
-  </ul>
-</section>
-
-<section aria-labelledby="credits-h">
-  <h2 id="credits-h">Credits</h2>
-  <p>The people below did the reverse engineering. This page is a new implementation of what they documented.</p>
-  <ul>
-    <li><a href="https://github.com/LYJW131/anker-prime-desktop">LYJW131/anker-prime-desktop</a>: handshake, field maps and request vectors used in the tests</li>
-    <li><a href="https://github.com/Hyper-Beast/Anker_Prime_160W_WebBLE">Hyper-Beast/Anker_Prime_160W_WebBLE</a>: A2687 Web Bluetooth client and notes on the official app</li>
-    <li><a href="https://github.com/qzz0518/Charker">qzz0518/Charker</a>: full macOS and Windows app</li>
-    <li><a href="https://github.com/gabrieljcs/openankerproto">gabrieljcs/openankerproto</a>: protocol reference across models</li>
-    <li><a href="https://github.com/atc1441/Anker_Prime_BLE_hacking">atc1441/Anker_Prime_BLE_hacking</a> and <a href="https://github.com/flip-dots/SolixBLE">flip-dots/SolixBLE</a>: earlier research</li>
-  </ul>
-  <p class="muted">Not affiliated with or endorsed by Anker. Use only with devices you own.</p>
-</section>
-</main>
-<script type="module" src="app.js"></script>
+<div id="app"></div>
+<noscript><p>This page needs JavaScript to talk to the charger.</p></noscript>
+<script type="module" src="/src/main.js"></script>
 </body>
 </html>

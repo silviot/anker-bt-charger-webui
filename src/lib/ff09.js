@@ -24,9 +24,32 @@ export const COMMANDS = {
   0x0027: "Account ID",
   0x0029: "Identity",
   0x0200: "Status snapshot",
+  0x0202: "Set language",
+  0x0203: "Set screen lock time",
+  0x0204: "Set brightness",
+  0x0205: "Set power allocation",
+  0x0206: "Set charging mode",
+  0x0207: "Port on or off",
+  0x0209: "Port timer",
   0x020a: "Real-time request",
+  0x020b: "Set screen direction",
+  0x020c: "Port history",
+  0x020d: "Set auto-rotate",
+  0x020f: "Set device identification",
+  0x021f: "Show picture",
+  0x0220: "Start picture transfer",
+  0x0221: "Picture chunk",
   0x0300: "Pushed telemetry",
+  0x0301: "Error report",
 };
+
+export const CMD = {
+  LANGUAGE: 0x0202, SCREEN_OFF: 0x0203, BRIGHTNESS: 0x0204, ALLOCATION: 0x0205, MODE: 0x0206,
+  PORT_SWITCH: 0x0207, PORT_TIMER: 0x0209, DIRECTION: 0x020b, HISTORY: 0x020c, ROTATE: 0x020d,
+  IDENTIFY: 0x020f, SHOW_PICTURE: 0x021f, PICTURE_START: 0x0220, PICTURE_CHUNK: 0x0221,
+};
+
+export const PORTS = ["C1", "C2", "C3"];
 
 export const hex = (bytes) =>
   [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -52,6 +75,8 @@ const u32le = (v) => {
   new DataView(out.buffer).setUint32(0, v >>> 0, true);
   return out;
 };
+
+const u16le = (v) => Uint8Array.of(v & 0xff, (v >> 8) & 0xff);
 
 export const epochBytes = (ms = Date.now()) => u32le(Math.floor(ms / 1000));
 
@@ -184,8 +209,12 @@ export class Ecdh {
 }
 
 // ---- Requests: the complete list of what this project sends ----
+// Values in group 0x0F carry a type byte: 01 u8, 02 u16, 03 u32, 04 raw bytes.
 
 const SP = 0x20;
+const ACTION = Uint8Array.of(0x21);
+export const PICTURE_CHUNK = 156;
+export const PICTURE_ACK_EVERY = 10;
 
 export const requests = {
   hello: (ts) => [GROUP_SESSION, 0x0001, buildTlv([[0xa1, ts]])],
@@ -197,8 +226,71 @@ export const requests = {
     buildTlv([[0xa1, ts], [0xa3, Uint8Array.of(SP)], [0xa4, Uint8Array.of(0x29, 0x01)], [0xa5, Uint8Array.of(0x44)], [0xa6, Uint8Array.of(0x02)]]),
   ],
   keyExchange: (xy) => [GROUP_SESSION, 0x0021, buildTlv([[0xa1, xy]])],
-  snapshot: (ts) => [GROUP_TELEMETRY, 0x0200, buildTlv([[0xa1, Uint8Array.of(0x21)], [0xfe, ts]])],
+  snapshot: (ts) => [GROUP_TELEMETRY, 0x0200, buildTlv([[0xa1, ACTION], [0xfe, ts]])],
+  setting: (command, value, ts = epochBytes()) => [GROUP_TELEMETRY, command, buildTlv([[0xa1, ACTION], [0xa2, Uint8Array.of(1, value)], [0xfe, ts]])],
+  portSwitch: (port, on, ts = epochBytes()) => [
+    GROUP_TELEMETRY, CMD.PORT_SWITCH,
+    buildTlv([[0xa1, ACTION], [0xa2, Uint8Array.of(1, PORTS.indexOf(port))], [0xa3, Uint8Array.of(1, on ? 1 : 0)], [0xfe, ts]]),
+  ],
+  portTimer: (port, seconds, ts = epochBytes()) => [
+    GROUP_TELEMETRY, CMD.PORT_TIMER,
+    buildTlv([[0xa1, ACTION], [0xa2, Uint8Array.of(1, PORTS.indexOf(port))], [0xa3, concat(Uint8Array.of(4), u32le(seconds))], [0xfe, ts]]),
+  ],
+  // The layout of A3 and A4 is an inference from the app, not a captured frame.
+  customMode: ({ profile = 1, autoExit = false, watts, masks }, ts = epochBytes()) => [
+    GROUP_TELEMETRY, CMD.MODE,
+    buildTlv([
+      [0xa1, ACTION],
+      [0xa2, Uint8Array.of(1, 4)],
+      [0xa3, Uint8Array.of(4, profile, autoExit ? 1 : 0, ...PORTS.map((p) => watts[p]))],
+      [0xa4, Uint8Array.of(4, ...PORTS.flatMap((p) => [masks[p], 0, 0]))],
+      [0xfe, ts],
+    ]),
+  ],
+  showPicture: (id, crc, ts = epochBytes()) => [
+    GROUP_TELEMETRY, CMD.SHOW_PICTURE,
+    buildTlv([
+      [0xa1, ACTION],
+      [0xa3, Uint8Array.of(1, 3)],
+      [0xa4, concat(Uint8Array.of(4), u32le(id))],
+      [0xa5, concat(Uint8Array.of(4), u32le(crc))],
+      [0xfd, concat(Uint8Array.of(0), new TextEncoder().encode("SmallChargingUrl"))],
+      [0xfe, concat(Uint8Array.of(3), ts)],
+    ]),
+  ],
+  pictureStart: (id, crc, size, count, ts = epochBytes()) => [
+    GROUP_TELEMETRY, CMD.PICTURE_START,
+    buildTlv([
+      [0xa1, ACTION],
+      [0xa2, Uint8Array.of(1, 1)],
+      [0xa3, concat(Uint8Array.of(4), u32le(id))],
+      [0xa4, concat(Uint8Array.of(4), u32le(crc))],
+      [0xa5, concat(Uint8Array.of(3), u32le(size))],
+      [0xa6, Uint8Array.of(1, PICTURE_ACK_EVERY)],
+      [0xa7, concat(Uint8Array.of(2), u16le(PICTURE_CHUNK))],
+      [0xa8, concat(Uint8Array.of(2), u16le(count))],
+      [0xfe, concat(Uint8Array.of(3), ts)],
+    ]),
+  ],
+  pictureChunk: (index, bytes) => {
+    const payload = new Uint8Array(PICTURE_CHUNK + 1);
+    payload[0] = 4;
+    payload.set(bytes, 1);
+    return [GROUP_TELEMETRY, CMD.PICTURE_CHUNK, buildTlv([[0xa1, ACTION], [0xa2, concat(Uint8Array.of(2), u16le(index))], [0xa3, payload]])];
+  },
 };
+
+// The IEEE CRC-32 of the JPEG is the hash the charger stores with a picture.
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+export function crc32(bytes) {
+  let c = 0xffffffff;
+  for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
 
 // ---- Decoding ----
 
@@ -234,31 +326,84 @@ export function decodePortStruct(value) {
   };
 }
 
+// C1, C2 and C3 control: 04, switch, timer running, timer u32le, remaining u32le, cable, charging info.
 export function decodeCable(value) {
   if (value.length < 3 || value[0] !== 0x04) return null;
   const capability = value[value.length - 2];
   const protocol = value[value.length - 1];
-  return { capability: CABLE_CAPABILITY[capability] ?? null, fastCharge: FAST_CHARGE[protocol] ?? null };
+  const out = { capability: CABLE_CAPABILITY[capability] ?? null, fastCharge: FAST_CHARGE[protocol] ?? null };
+  if (value.length === 13) {
+    const v = new DataView(value.buffer, value.byteOffset, value.byteLength);
+    out.on = value[1] === 1;
+    out.timerRunning = value[2] === 1;
+    out.timerSeconds = v.getUint32(3, true);
+    out.timerRemaining = v.getUint32(7, true);
+  }
+  return out;
 }
+
+const VENDORS = { 0x05ac: "Apple", 0x291a: "Anker", 0x04e8: "Samsung", 0x18d1: "Google" };
+const BRANDS = {
+  1: "Apple", 2: "Samsung", 3: "Xiaomi", 4: "Huawei", 5: "Google", 6: "LG", 7: "IDT", 8: "TI", 9: "YBZ", 10: "Anker",
+  11: "Honor", 12: "HP", 13: "Dell", 14: "Lenovo", 15: "Microsoft", 16: "ASUS", 17: "ASUS", 18: "MSI", 19: "Razer",
+};
+
+function decodeDevices(tlvs) {
+  const out = {};
+  const usb = tlvs.get(0xb4);
+  const brand = tlvs.get(0xb5);
+  PORTS.forEach((port, i) => {
+    if (usb?.length >= 13) {
+      const vid = usb[1 + i * 4] | (usb[2 + i * 4] << 8);
+      if (VENDORS[vid]) out[port] = VENDORS[vid];
+    }
+    if (!out[port] && brand?.length >= 13 && BRANDS[brand[1 + i * 4]]) out[port] = BRANDS[brand[1 + i * 4]];
+  });
+  return out;
+}
+
+const typedU8 = (value) => (value?.length === 2 && value[0] === 1 ? value[1] : null);
 
 export function decodeSnapshot(plain) {
   const tlvs = new Map(parseTlv(plain).map((t) => [t.type, t.value]));
   const ports = {};
+  const devices = decodeDevices(tlvs);
   for (const name of Object.keys(PORT_TLV)) {
     const value = tlvs.get(PORT_TLV[name]);
     if (!value) continue;
     const port = decodePortStruct(value);
     if (!port) continue;
     const cable = tlvs.get(CABLE_TLV[name]);
-    ports[name] = { ...port, cable: cable ? decodeCable(cable) : null };
+    ports[name] = { ...port, cable: cable ? decodeCable(cable) : null, device: devices[name] ?? null };
   }
-  const brightness = tlvs.get(0xa9);
+  const picture = tlvs.get(0xe1);
   return {
     ports,
     totalWatts: Object.values(ports).reduce((sum, p) => sum + (p.mode ? p.watts : 0), 0),
-    brightness: brightness?.length === 2 ? brightness[1] : null,
+    screenOff: typedU8(tlvs.get(0xa8)),
+    brightness: typedU8(tlvs.get(0xa9)),
+    chargingMode: typedU8(tlvs.get(0xaa)),
+    direction: typedU8(tlvs.get(0xaf)),
+    language: typedU8(tlvs.get(0xb0)),
+    autoRotate: typedU8(tlvs.get(0xb2)),
+    // Only the low 16 bits of the picture id are reported. Older firmware has no such field.
+    pictureId: picture?.length >= 5 ? picture[3] | (picture[4] << 8) : null,
   };
 }
+
+export const SCREEN_OFF = ["30 seconds", "1 minute", "5 minutes", "30 minutes", "12 hours"];
+export const LANGUAGES = ["English", "Chinese", "Japanese", "German"];
+export const DIRECTIONS = ["Up", "Left", "Down", "Right"];
+export const MODES = { 0: "Smart", 1: "Standard", 4: "Custom" };
+
+const SETTING_TLV = {
+  0xa8: (v) => `Screen lock time: ${SCREEN_OFF[v] ?? v}`,
+  0xa9: (v) => `Screen brightness: ${v}%`,
+  0xaa: (v) => `Charging mode: ${MODES[v] ?? v}`,
+  0xaf: (v) => `Screen direction: ${DIRECTIONS[v] ?? v}`,
+  0xb0: (v) => `Language: ${LANGUAGES[v] ?? v}`,
+  0xb2: (v) => `Auto-rotate: ${v ? "on" : "off"}`,
+};
 
 // Plain-language names for the fields of a decoded frame.
 export function describeTlv(command, type, value) {
@@ -272,9 +417,14 @@ export function describeTlv(command, type, value) {
     const cable = Object.keys(CABLE_TLV).find((k) => CABLE_TLV[k] === type);
     if (cable) {
       const c = decodeCable(value);
-      return `${cable} cable: ${c?.capability ?? "not reported"}${c?.fastCharge ? `, ${c.fastCharge}` : ""}`;
+      const timer = c?.timerRunning ? `, timer ${c.timerRemaining} s left` : "";
+      return `${cable} control: ${c?.on === false ? "switched off" : "on"}${timer}, cable ${c?.capability ?? "not reported"}${c?.fastCharge ? `, ${c.fastCharge}` : ""}`;
     }
-    if (type === 0xa9 && value.length === 2) return `Screen brightness: ${value[1]}%`;
+    if (value.length === 2 && SETTING_TLV[type]) return SETTING_TLV[type](value[1]);
+    if (type === 0xab) return "Custom mode settings (layout not fully known)";
+    if (type === 0xb4) return "Attached devices: USB vendor and product IDs";
+    if (type === 0xb5) return "Attached devices: brand and model codes";
+    if (type === 0xe1 && value.length >= 5) return `Picture on screen: id ${value[3] | (value[4] << 8)}`;
     if (type === 0xfe) return "Timestamp field";
     if (type === 0xa1 && value.length === 1) return "State code";
   }
@@ -295,8 +445,8 @@ export function describeTlv(command, type, value) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export class Session {
-  constructor(transport, { onFrame = () => {}, onStep = () => {}, onKeys = () => {}, onIdentity = () => {}, onSnapshot = () => {} } = {}) {
-    Object.assign(this, { transport, onFrame, onStep, onKeys, onIdentity, onSnapshot });
+  constructor(transport, { onFrame = () => {}, onStep = () => {}, onKeys = () => {}, onIdentity = () => {}, onSnapshot = () => {}, onError = () => {} } = {}) {
+    Object.assign(this, { transport, onFrame, onStep, onKeys, onIdentity, onSnapshot, onError });
     this.cipher = new Cipher();
     this.assembler = new Assembler();
     this.waiters = new Map();
@@ -324,10 +474,11 @@ export class Session {
       }
       const key = this.cipher.isSession ? "session" : "initial";
       this.onFrame({ dir: "rx", frame, plain, authOk, key, at: Date.now() });
-      const waiter = this.waiters.get(frame.command);
-      if (waiter && plain) {
+      if (plain) {
+        const waiting = this.waiters.get(frame.command);
         this.waiters.delete(frame.command);
-        waiter(plain);
+        waiting?.forEach((resolve) => resolve(plain));
+        if (frame.command === 0x0301) this.onError(plain);
       }
       // A push can arrive at any time, so telemetry is decoded here and not only on request.
       if (plain && (frame.command === 0x0200 || frame.command === 0x0300)) this.onSnapshot(decodeSnapshot(plain));
@@ -344,14 +495,17 @@ export class Session {
   async request(req, timeoutMs = 6000) {
     const command = req[1];
     const reply = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.waiters.delete(command);
-        reject(new Error(`No reply to command 0x${command.toString(16).padStart(4, "0")}`));
-      }, timeoutMs);
-      this.waiters.set(command, (plain) => {
+      const done = (plain) => {
         clearTimeout(timer);
         resolve(plain);
-      });
+      };
+      const timer = setTimeout(() => {
+        const left = (this.waiters.get(command) ?? []).filter((w) => w !== done);
+        if (left.length) this.waiters.set(command, left);
+        else this.waiters.delete(command);
+        reject(new Error(`No reply to command 0x${command.toString(16).padStart(4, "0")}`));
+      }, timeoutMs);
+      this.waiters.set(command, [...(this.waiters.get(command) ?? []), done]);
     });
     await this.send(req);
     return reply;
@@ -385,6 +539,35 @@ export class Session {
     this.onKeys({ hostPublic: ecdh.publicXY, devicePublic: devicePub, shared, key, nonce });
     this.onStep("session");
     await sleep(120);
+  }
+
+  // The first byte of a write reply is its result. 00 means the charger took it, which does
+  // not prove that anything changed: callers should confirm against the next snapshot.
+  async write(req, timeoutMs = 4000) {
+    return (await this.request(req, timeoutMs))[0] ?? null;
+  }
+
+  // Sends a JPEG in chunks. The charger acks every tenth chunk and the last, and it answers 0x12
+  // if chunks arrive without waiting for those acks.
+  async sendPicture(id, crc, jpeg, onProgress = () => {}) {
+    const count = Math.ceil(jpeg.length / PICTURE_CHUNK);
+    const started = await this.write(requests.pictureStart(id, crc, jpeg.length, count));
+    if (started !== 0) throw new Error(`The charger refused the transfer (code 0x${started.toString(16)})`);
+    await sleep(200);
+    for (let i = 0; i < count; i++) {
+      const req = requests.pictureChunk(i, jpeg.subarray(i * PICTURE_CHUNK, (i + 1) * PICTURE_CHUNK));
+      const last = i === count - 1;
+      if (last || (i + 1) % PICTURE_ACK_EVERY === 0) {
+        // The charger writes to flash before the last ack, which took 3.6 s in one report.
+        const result = await this.write(req, last ? 10000 : 5000);
+        if (result !== 0 && result !== 0x10) throw new Error(`The charger stopped the transfer (code 0x${result.toString(16)})`);
+      } else {
+        await this.send(req);
+        await sleep(40);
+      }
+      onProgress(i + 1, count);
+    }
+    await sleep(400);
   }
 
   async snapshot(timeoutMs = 4000) {

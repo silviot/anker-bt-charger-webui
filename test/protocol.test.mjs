@@ -1,8 +1,8 @@
-// Run with: node test.mjs [path/to/anker-prime-desktop/spec/protocol.json]
+// Run with: npm test [-- path/to/anker-prime-desktop/spec/protocol.json]
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import * as ff from "./ff09.js";
-import { SimulatedCharger } from "./simulator.js";
+import * as ff from "../src/lib/ff09.js";
+import { SimulatedCharger } from "../src/lib/simulator.js";
 
 // Frame layout, from the worked example in the page.
 const frame = ff.buildFrame(1, 0x0029, ff.unhex("aabb"));
@@ -67,6 +67,8 @@ assert.equal(keys.nonce.length, 12);
 assert.ok(frames.every((f) => f.authOk !== false));
 const live = await session.snapshot();
 assert.equal(live.ports.C1.mode, 1);
+assert.equal(live.brightness, 80);
+assert.equal(live.ports.C1.cable.on, true);
 assert.ok(live.ports.C1.watts > 55 && live.ports.C1.watts < 75, `C1 ${live.ports.C1.watts}`);
 assert.equal(live.ports.C3.mode, 0);
 assert.equal(frames.at(-1).key, "session");
@@ -74,9 +76,62 @@ assert.equal(frames.at(-1).key, "session");
 assert.ok(frames.at(-2).frame.encrypted);
 assert.equal(frames.at(-1).frame.encrypted, false);
 
-// Only the read-only list goes out.
+// Connecting and reading sends only the handshake and the snapshot request.
 const sent = new Set(frames.filter((f) => f.dir === "tx").map((f) => f.frame.command));
 assert.deepEqual([...sent].sort((x, y) => x - y), [0x0001, 0x0003, 0x0005, 0x0021, 0x0029, 0x0200]);
+
+// Real control fields captured from the test unit: on, off, and a timer with 89 s left.
+const on = ff.decodeCable(ff.unhex("0401002c0100002c0100000300"));
+assert.deepEqual([on.on, on.timerRunning, on.timerSeconds, on.capability], [true, false, 300, null]);
+assert.equal(ff.decodeCable(ff.unhex("0400002c0100002c0100000300")).on, false);
+const timed = ff.decodeCable(ff.unhex("0401015a000000590000000300"));
+assert.deepEqual([timed.timerRunning, timed.timerSeconds, timed.timerRemaining], [true, 90, 89]);
+
+// A real settings snapshot from the test unit: no picture field on this firmware.
+const real = ff.decodeSnapshot(ff.unhex("00a10131a8020100a9020150aa020100af020100b0020100b2020101"));
+assert.deepEqual(
+  [real.screenOff, real.brightness, real.chargingMode, real.direction, real.language, real.autoRotate, real.pictureId],
+  [0, 80, 0, 0, 0, 1, null],
+);
+
+// Frames that a real charger accepted, apart from the timestamp.
+const ts0 = Uint8Array.of(1, 2, 3, 4);
+assert.equal(ff.hex(ff.requests.setting(ff.CMD.BRIGHTNESS, 40, ts0)[2]), "a10121a2020128fe0401020304");
+assert.equal(ff.hex(ff.requests.portSwitch("C1", false, ts0)[2]), "a10121a2020100a3020100fe0401020304");
+assert.equal(ff.hex(ff.requests.portSwitch("C3", true, ts0)[2]), "a10121a2020102a3020101fe0401020304");
+assert.equal(ff.hex(ff.requests.portTimer("C1", 90, ts0)[2]), "a10121a2020100a305045a000000fe0401020304");
+
+// Layouts documented by anker-prime-desktop: 47, 49 and 167 bytes.
+assert.equal(ff.requests.showPicture(1001, 0xabcd, ts0)[2].length, 47);
+assert.equal(ff.requests.pictureStart(1001, 0xabcd, 500, 4, ts0)[2].length, 49);
+assert.equal(ff.requests.pictureChunk(0, Uint8Array.of(1, 2))[2].length, 167);
+assert.equal(ff.crc32(new TextEncoder().encode("123456789")), 0xcbf43926);
+
+// Writes change what the simulator reports, as they did on the real charger.
+assert.equal(await session.write(ff.requests.setting(ff.CMD.BRIGHTNESS, 40)), 0);
+assert.equal((await session.snapshot()).brightness, 40);
+await session.write(ff.requests.setting(ff.CMD.DIRECTION, 2));
+const turned = await session.snapshot();
+assert.deepEqual([turned.direction, turned.autoRotate], [2, 0]);
+await session.write(ff.requests.portSwitch("C1", false));
+const cut = await session.snapshot();
+assert.deepEqual([cut.ports.C1.mode, cut.ports.C1.cable.on], [0, false]);
+await session.write(ff.requests.portSwitch("C1", true));
+await session.write(ff.requests.portTimer("C2", 600));
+assert.ok((await session.snapshot()).ports.C2.cable.timerRunning);
+await session.write(ff.requests.portTimer("C2", 0));
+assert.equal((await session.snapshot()).ports.C2.cable.timerRunning, false);
+await assert.rejects(session.write(ff.requests.setting(ff.CMD.IDENTIFY, 1), 100));
+
+// A picture travels through the chunks intact, and only then can it be shown.
+const jpeg = Uint8Array.from({ length: 2000 }, (_, i) => i % 251);
+const crc = ff.crc32(jpeg);
+assert.equal(await session.write(ff.requests.showPicture(4242, crc)), 0x11);
+let moved = 0;
+await session.sendPicture(4242, crc, jpeg, (done) => (moved = done));
+assert.equal(moved, Math.ceil(2000 / 156));
+assert.deepEqual(sim.pictures.get(4242), jpeg);
+assert.equal((await session.snapshot()).pictureId, 4242);
 
 // A changed ciphertext byte fails authentication.
 const cipher = new ff.Cipher();

@@ -1,12 +1,12 @@
 # Anker Prime 160W charger, in your browser
 
-I have an Anker Prime 160W charger (A2687) with Bluetooth, and I wanted to see what it says without installing an app or creating an account.
+I have an Anker Prime 160W charger (A2687) with Bluetooth, and I wanted to use it without installing an app or creating an account.
 
-This page connects to the charger from the browser, shows live power for each port, and explains the protocol byte by byte.
+This page connects to the charger from the browser. You can watch live power per port, switch ports off, set timers, and change the charging and screen settings. If you're a developer, the "How it works" view explains the protocol byte by byte.
 
 **Try it: <https://silvio-chrgr.pgs.sh>**
 
-No charger? Click "Use simulated charger". It runs the same protocol code.
+No charger? Click "Try the simulator". It runs the same protocol code.
 
 ## Using it with a real charger
 
@@ -14,22 +14,24 @@ You need Chrome or Edge on a desktop computer (Web Bluetooth). Quit the Anker ap
 
 On Linux, you may have to enable `chrome://flags/#enable-experimental-web-platform-features`.
 
-The page is read-only. It sends only `0x0001`, `0x0003`, `0x0029`, `0x0005`, `0x0021` and `0x0200`: no settings, no time zone, no account ID.
-
 ## Running it locally
 
-There is nothing to build or install:
-
 ```bash
-python3 -m http.server 8000   # then open http://localhost:8000
-node test.mjs                 # run the tests
+npm install
+npm run dev      # then open the URL it prints
+npm test         # protocol tests
+npm run build    # static site in dist/
 ```
 
 ## How much to trust this
 
-One data point: I tested it on my own charger only (firmware v0.0.3.7). On this unit, port data needs no pairing or account ID, and the replies aren't encrypted. Other units and firmware versions may behave differently.
+One data point: I tested it on my own charger only (firmware v0.0.3.7). On it, port switches, timers and screen settings all worked, with the new value read back from the charger. None of them needed pairing or an account ID (which also means anyone in Bluetooth range can probably do the same).
 
-The code and the explanation were largely written by Claude Code, and I did not proofread them line by line. It does work with my charger, though.
+These are not tested, because they could interrupt charging or replace a picture: charging modes, fixed power sharing, custom mode and custom pictures. They come from other people's analysis of the official app, and the page says so next to each one. The Help view has the full comparison with the app.
+
+These commands were reverse engineered, so a firmware update could change them. Firmware updates themselves are left out on purpose.
+
+The code and the explanation were largely written by Claude Code, and I did not proofread them line by line.
 
 ## Credits
 
