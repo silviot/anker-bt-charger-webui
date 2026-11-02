@@ -139,7 +139,11 @@ select { font: inherit; padding: 4px; border-radius: 6px; background: var(--surf
 .top nav a:hover, .subnav a:hover { color: var(--text); }
 .top nav a[aria-current=page] { color: var(--text); font-weight: 600; border-color: var(--accent); }
 main { max-width: 1040px; margin: auto; padding: 24px 24px 40px; outline: none; }
-.foot { max-width: 1040px; margin: auto; padding: 8px 24px 24px; color: var(--text-2); font-size: 13px; }
+.foot { background: #000; color: #c3c2b7; font-size: 13px; }
+.foot-row { max-width: 1040px; margin: auto; padding: 20px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 28px; }
+.foot p { margin: 0; }
+.foot a { color: #fff; }
+.foot-logo { display: inline-flex; }
 .lede-s { color: var(--text-2); max-width: 44em; margin: 0 0 18px; }
 main > h1, .hero h1 { margin-bottom: 8px; }
 main > h1 { font-size: 30px; }
