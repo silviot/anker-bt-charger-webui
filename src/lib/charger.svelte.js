@@ -81,7 +81,11 @@ class Charger {
       const { transport, start } = await open();
       session = this.session = new ff.Session(transport, {
         onFrame: (f) => this.#addFrame(f),
-        onStep: (s) => (this.step = s),
+        onStep: (s) => {
+          this.step = s;
+          const at = ["hello", "params", "identity", "setup", "keyExchange"].indexOf(s);
+          if (at >= 0) this.statusText = `Setting up, step ${at + 1} of 5…`;
+        },
         onKeys: (k) => (this.keys = k),
         onIdentity: (i) => (this.identity = i),
         onSnapshot: (s) => this.#addSnapshot(s),

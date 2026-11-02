@@ -45,6 +45,15 @@ downloaded during the investigation contained no identified charger firmware.
 The public GD32F303/TLSR8253 backups in the older BLE hacking project belong to
 a different power bank.
 
+The [Anker Power 3.25.0 APK investigation](research/firmware/apk-3.25.0.json)
+also covers its separate Flutter asset pack and 102 nested archives (7,128
+files in total). Its APK signatures match the older official download. No
+A2687 firmware image was identified. Disassembly shows that the A2687 update
+controller queries cloud metadata; the shared BLE updater downloads a URL
+from that response. Its `App.bin` reference names a file created in the app's
+documents directory. This supports downloading firmware at runtime, although
+it does not exclude a hidden image in protected code or another regional build.
+
 The [A2687 teardown](https://www.chargerlab.com/teardown-of-anker-prime-160w-charger-with-smart-display-a2687/)
 identifies an HC32F452 Cortex-M4 on the display board, an AB2026B3 RISC-V
 Bluetooth SoC and 16 MiB of external NOR flash. It also has TI C28x power

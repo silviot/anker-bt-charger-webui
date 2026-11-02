@@ -61,6 +61,19 @@
       <tr><th>Notify</th><td><code>8c850003-…</code> (replies arrive here)</td></tr>
     </tbody>
   </table></div>
+  <h2>What it broadcasts</h2>
+  <p>Before any connection, the charger advertises its name and this manufacturer data under company ID <code>0xFFFF</code>. It stayed the same during a 25-second scan with all ports idle, and it holds no power readings or settings, so live data needs a connection. The meaning of the bytes marked "probably" is inferred.</p>
+  <div class="table-scroll"><table class="plain">
+    <thead><tr><th>Bytes</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>02</code></td><td>Not known</td></tr>
+      <tr><td><code>7C E9 13 92 9D 99</code></td><td>Bluetooth address</td></tr>
+      <tr><td><code>02</code></td><td>Not known</td></tr>
+      <tr><td><code>B4 05</code></td><td>Probably the product type: the app lists <code>B405</code> for the A2687</td></tr>
+      <tr><td><code>44 4A 56 56</code></td><td>Probably part of the serial: "DJVV"</td></tr>
+      <tr><td><code>04</code></td><td>Not known</td></tr>
+    </tbody>
+  </table></div>
   <p>Then come the <a href="#/protocol/handshake">handshake</a>, and <a href="#/protocol/commands">commands</a> in <a href="#/protocol/frames">frames</a>. To see real traffic, connect and open the <a href="#/protocol/lab">frame lab</a>. The simulator runs the same code, with the real encryption.</p>
 
 {:else if page === "handshake"}
@@ -81,6 +94,7 @@
   {:else if charger.state === "idle"}
     <div class="row"><button onclick={() => charger.connectSimulator()}>Watch it with the simulator</button></div>
   {/if}
+  <p>On the test unit, every step above was needed. Skipping to the key exchange, or sending only identity and key exchange, got no reply to the snapshot request. The key exchange is the slowest step, at about 1.2 seconds.</p>
   <p>The session key is bytes 0–15 of the ECDH shared secret, and the nonce is bytes 16–27. There is no key derivation function.</p>
   <p>Other clients go on to send <code>0x0022</code> (time zone) and <code>0x0027</code> (a 40-character Anker account ID). Those unlock the pushed <code>0x0300</code> stream, according to other projects. This page sends neither: it polls <code>0x0200</code> once per second, and on the test unit settings worked without them. A wrong account ID can stop a lock-screen picture from showing, according to the same projects.</p>
 

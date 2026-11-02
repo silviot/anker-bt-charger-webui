@@ -511,23 +511,20 @@ export class Session {
     return reply;
   }
 
+  // All five steps are needed: on the test unit, shorter sequences got no snapshot reply.
+  // Waits between steps weren't needed there either, and they cost about 0.7 s.
   async handshake() {
-    await sleep(300); // Let notifications settle, as the official app does.
     const ts = epochBytes();
     this.onStep("hello");
     await this.request(requests.hello(ts));
-    await sleep(100);
     this.onStep("params");
     await this.request(requests.params(ts));
-    await sleep(100);
     this.onStep("identity");
     const identity = decodeIdentity(await this.request(requests.identity(ts)));
     this.identity = identity;
     this.onIdentity(identity);
-    await sleep(100);
     this.onStep("setup");
     await this.request(requests.setup(epochBytes()));
-    await sleep(100);
 
     this.onStep("keyExchange");
     const ecdh = await Ecdh.create();
@@ -538,7 +535,6 @@ export class Session {
     this.cipher.useSession(key, nonce);
     this.onKeys({ hostPublic: ecdh.publicXY, devicePublic: devicePub, shared, key, nonce });
     this.onStep("session");
-    await sleep(120);
   }
 
   // The first byte of a write reply is its result. 00 means the charger took it, which does
