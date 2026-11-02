@@ -13,7 +13,6 @@
   let dragging = $state(false);
   let draft = $state(null); // { url, jpeg, crc, name }
   let progress = $state(null);
-  let tryAnyway = $state(false);
   let gallery = $state(load());
 
   const shownBrightness = $derived(dragging || outcome === "sending" ? brightness : snap?.brightness);
@@ -142,13 +141,12 @@
     </section>
 
     <section class="card">
-      <h2>Picture <span class="badge warn">Untested here</span></h2>
+      <h2>Picture <span class="badge warn">{pictureKnown ? "Untested here" : "Needs newer firmware"}</span></h2>
       <p>Show your own picture on the charger's lock screen. It holds four pictures, so a new one replaces an older one.</p>
       {#if !pictureKnown}
-        <p class="notice">This firmware doesn't report which picture is showing, and it even accepted a picture that doesn't exist. So this page can't tell whether this works on your charger. Pictures are known to work on firmware v0.0.5.2.</p>
-        <label class="check"><input type="checkbox" bind:checked={tryAnyway} /> Try anyway</label>
+        <p class="notice">Your charger's firmware doesn't support this as far as I can tell, so upload is turned off. On v0.0.3.7, a full upload finished but no picture appeared, and the connection dropped. Pictures are reported to work on v0.0.5.2. You can update the firmware in the Anker app, but other features here haven't been tested on newer firmware.</p>
       {/if}
-      {#if pictureKnown || tryAnyway}
+      {#if pictureKnown}
         <div class="row">
           <label class="file">Choose a picture <input type="file" accept="image/*" onchange={choose} /></label>
           <span class="muted">The middle of the picture is cropped to a square.</span>

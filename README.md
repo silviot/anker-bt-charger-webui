@@ -27,7 +27,9 @@ npm run build    # static site in dist/
 
 One data point: I tested it on my own charger only (firmware v0.0.3.7). On it, port switches, timers and screen settings all worked, with the new value read back from the charger. None of them needed pairing or an account ID (which also means anyone in Bluetooth range can probably do the same).
 
-These are not tested, because they could interrupt charging or replace a picture: charging modes, fixed power sharing, custom mode and custom pictures. They come from other people's analysis of the official app, and the page says so next to each one. The Help view has the full comparison with the app.
+These are not tested, because they could interrupt charging: charging modes, fixed power sharing and custom mode. They come from other people's analysis of the official app, and the page says so next to each one.
+
+Custom pictures failed on my firmware: the upload finished, but no picture appeared and the connection dropped. The page turns upload off on firmware that doesn't report a current picture. Pictures are reported to work on v0.0.5.2, which I have not tried. The Help view has the full comparison with the app.
 
 These commands were reverse engineered, so a firmware update could change them. Firmware updates themselves are left out on purpose.
 
