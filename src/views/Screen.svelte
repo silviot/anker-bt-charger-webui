@@ -59,13 +59,13 @@
     await prepare(file.name, (ctx) => ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE));
   }
 
-  // The default picture: the white logo, centered on black.
+  // The default picture: the white logo symbol, centered on black.
   async function useLogo() {
     const img = new Image();
-    img.src = "codemyriad-logo.svg";
+    img.src = "codemyriad-mark.svg";
     await img.decode();
-    const width = 208;
-    const height = (width * 28) / 150;
+    const width = 170;
+    const height = (width * 28) / 36.6;
     await prepare("Codemyriad logo", (ctx) => ctx.drawImage(img, (SIZE - width) / 2, (SIZE - height) / 2, width, height));
   }
 

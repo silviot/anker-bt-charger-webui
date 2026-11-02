@@ -35,6 +35,52 @@ These commands were reverse engineered, so a firmware update could change them. 
 
 The code and the explanation were largely written by Claude Code, and I did not proofread them line by line.
 
+## Firmware investigation
+
+The A2687 firmware image has **not been obtained or disassembled**. The
+[investigation record](research/firmware/findings.json) preserves sources,
+download checks and their limitations. The documented single-product OTA URL
+returned HTTP 401 (`token error`) without authentication. The official app APK
+downloaded during the investigation contained no identified charger firmware.
+The public GD32F303/TLSR8253 backups in the older BLE hacking project belong to
+a different power bank.
+
+The [A2687 teardown](https://www.chargerlab.com/teardown-of-anker-prime-160w-charger-with-smart-display-a2687/)
+identifies an HC32F452 Cortex-M4 on the display board, an AB2026B3 RISC-V
+Bluetooth SoC and 16 MiB of external NOR flash. It also has TI C28x power
+control and Cortex-M0 port controllers. Which components an OTA package updates
+is still unknown. The Bluetooth version and main application version must be
+kept separate.
+
+To continue, obtain the A2687 binary or a decoded update metadata response from
+the official app/account. An Android phone's existing download cache is another
+possible source; USB debugging alone does not guarantee access to private app
+files. Checking for an update and installing one are separate actions.
+
+The standalone Python tool downloads packages from captured metadata and
+performs offline binary triage. It does not connect to Bluetooth or install
+firmware, and needs only Python's standard library:
+
+```bash
+# Read a decoded batch OTA response or single-product response from a local file.
+# Only packages explicitly labelled A2687 are selected; size and MD5 are required.
+python3 tools/firmware.py fetch /absolute/path/update.json
+
+# Inspect any acquired image: hashes, strings with offsets, entropy, known
+# crypto constants and possible Cortex-M vector tables. This is initial triage,
+# not disassembly, decryption, signature verification or proof of product identity.
+python3 tools/firmware.py inspect /absolute/path/firmware.bin --output /tmp/firmware-analysis.json
+
+python3 -m unittest discover -s test -p '*_test.py'
+```
+
+Store original manifests in `research/firmware/private/` and downloaded files in
+`research/firmware/downloads/`; both directories are ignored by Git. The download
+ledger omits the account serial and records SHA-256 alongside the supplied MD5.
+Matching MD5 establishes agreement with the metadata; publisher authentication
+remains unverified. Vector and magic matches are analysis leads and do not
+establish the processor or memory map.
+
 ## Credits
 
 The protocol facts come from people who did the hard work first:

@@ -1,0 +1,70 @@
+{
+  "investigated_on": "2026-11-02",
+  "target": "Anker Prime 160W charger A2687",
+  "acquisition_status": "blocked_pending_image_or_authenticated_update_metadata",
+  "a2687_firmware_obtained": false,
+  "a2687_firmware_disassembled": false,
+  "evidence": [
+    {
+      "kind": "local_repository",
+      "source": "README.md",
+      "observation": "The tested charger reports Bluetooth firmware v0.0.3.7. This is not established as its main application version."
+    },
+    {
+      "kind": "hardware_teardown",
+      "source": "https://www.chargerlab.com/teardown-of-anker-prime-160w-charger-with-smart-display-a2687/",
+      "components": [
+        {"part": "HC32F452KETB", "role": "display-board MCU", "architecture": "ARM Cortex-M4"},
+        {"part": "AB2026B3", "role": "Bluetooth SoC", "architecture": "RISC-V"},
+        {"part": "GD25Q128E", "role": "external NOR flash", "capacity_bytes": 16777216},
+        {"part": "TMS320F2800133", "role": "power conversion control", "architecture": "TI C28x"},
+        {"part": "SW2335H", "role": "per-port charging protocol controller", "architecture": "ARM Cortex-M0"}
+      ],
+      "limitation": "Reported for the teardown unit; not verified by opening this user's charger. Package partitioning and update coverage remain unknown."
+    },
+    {
+      "kind": "live_http_probe",
+      "request_method": "POST",
+      "request_body": {},
+      "urls": [
+        "https://ankerpower-api-eu.anker.com/app/ota/A2687/ALL/update/v0.0.0.0",
+        "https://aiot-api-cn.anker.com.cn/app/ota/A2687/ALL/update/v0.0.0.0"
+      ],
+      "http_status": 401,
+      "response": {"code": 401, "msg": "token error"},
+      "limitation": "Authentication failed before payload validation; this does not establish a valid A2687 request schema or update availability. No serial or credentials were sent."
+    },
+    {
+      "kind": "source_code_reference",
+      "source": "https://github.com/thomluther/anker-solix-api/blob/646e2b7bc314321527e7ec41070367154e001a3c/src/anker_solix_api/apibase.py",
+      "observation": "get_ota_batch requests app/ota/batch/check_update with device_list entries containing device_sn and version. Package records contain component, version, size, MD5 and download URL.",
+      "limitation": "No authenticated lookup performed for this A2687. No Anker account credentials or tokens are available in this investigation."
+    },
+    {
+      "kind": "public_firmware_storage",
+      "observation": "Both EU and US public-aiot S3 buckets reject ListObjectsV2 on anker-power/public/ota/ with HTTP 403 AccessDenied. Wayback CDX queries for A2687 under those paths returned empty arrays.",
+      "limitation": "This does not imply that known firmware object URLs are private or unavailable."
+    },
+    {
+      "kind": "official_app_download_and_static_inspection",
+      "source_page": "https://www.anker.com/app-download",
+      "url": "https://public-aiot-ore-ci.s3.dualstack.us-west-2.amazonaws.com/anker-power/public/product/2025/05/26/iot-admin/CdqqHAlSsJRuGkLZ/Anker_3.8.0_release_mp_202505250018_encrypt.apk",
+      "local_path": "/tmp/anker-fw-research/Anker_3.8.0.apk",
+      "bytes": 302415054,
+      "sha256": "a822c680d3c1d4c1a7b5b2be70d0a3c0d36df13761202a5223de755740c5ccc0",
+      "zip_entries": 2711,
+      "observation": "No packaged charger firmware identified. ARM64 libapp.so has no literal A2687. The generic OTA batch and single-product path strings are present.",
+      "limitation": "This is an Android application, not charger firmware. The absence of an A2687 literal does not prove every possible A2687 code path is absent."
+    },
+    {
+      "kind": "excluded_reference_firmware",
+      "source": "https://github.com/atc1441/Anker_Prime_BLE_hacking/tree/7d0d5a0cb2ae37f66d0be2f4af4ff53dd405e962/Firmware_Files",
+      "observation": "The four public v1.6.1/v1.6.2 backups target GD32F303 and TLSR8253 in an Anker 27650mAh power bank. They are not A2687 firmware and their vulnerabilities cannot be attributed to A2687."
+    }
+  ],
+  "next_required_input": [
+    "A2687 firmware binary with its provenance, or",
+    "A decoded authenticated OTA metadata response containing the A2687 component download URLs, sizes and hashes, or",
+    "An Android phone connected over ADB with a cached A2687 update package accessible to the shell"
+  ]
+}
