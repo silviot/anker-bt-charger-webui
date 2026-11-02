@@ -79,6 +79,16 @@
 
   const confirmed = (id) => (pictureKnown ? (s) => s.pictureId === (id & 0xffff) : null);
 
+  // The charger can drop the link after an upload. The page reconnects, and a snapshot
+  // showing the new id then still counts as proof.
+  let pending = $state(null);
+  $effect(() => {
+    if (pending !== null && snap?.pictureId === (pending & 0xffff)) {
+      pending = null;
+      pictureOutcome = "confirmed";
+    }
+  });
+
   async function send() {
     const { jpeg, crc, name, url } = draft;
     // Ids below 65536 can be confirmed, because the charger reports only the low 16 bits.
@@ -89,12 +99,19 @@
       // The official order: select the new id (the charger answers "not here yet"), then send it.
       await charger.session.write(requests.showPicture(id, crc)).catch(() => {});
       await charger.session.sendPicture(id, crc, jpeg, (done, count) => (progress = done / count));
-      pictureOutcome = await charger.apply(requests.showPicture(id, crc), confirmed(id));
+      pending = id;
       gallery = [{ id, crc, name, url, jpeg: hex(jpeg) }, ...gallery].slice(0, 8);
       save();
       draft = null;
+      const result = await charger.apply(requests.showPicture(id, crc), confirmed(id));
+      if (result === "no-reply") {
+        pictureOutcome = "The upload finished, then the connection dropped. Reconnecting to check it…";
+      } else {
+        pending = null;
+        pictureOutcome = result;
+      }
     } catch (e) {
-      pictureOutcome = e.message;
+      pictureOutcome = charger.connected ? e.message : "The connection dropped during the upload. Reconnect and try again.";
     } finally {
       progress = null;
     }
@@ -163,10 +180,10 @@
     </section>
 
     <section class="card">
-      <h2>Picture <span class="badge warn">{pictureKnown ? "Untested here" : "Needs newer firmware"}</span></h2>
-      <p>Show your own picture on the charger's lock screen. It holds four pictures, so a new one replaces an older one.</p>
+      <h2>Picture {#if !pictureKnown}<span class="badge warn">Needs newer firmware</span>{/if}</h2>
+      <p>Show your own picture on the charger's lock screen. It holds four pictures, so a new one replaces an older one. The charger may disconnect after an upload, and this page then reconnects by itself.</p>
       {#if !pictureKnown}
-        <p class="notice">Your charger's firmware doesn't support this as far as I can tell, so upload is turned off. On v0.0.3.7, a full upload finished but no picture appeared, and the connection dropped. Pictures are reported to work on v0.0.5.2. You can update the firmware in the Anker app, but other features here haven't been tested on newer firmware.</p>
+        <p class="notice">Your charger's firmware doesn't support this as far as I can tell, so upload is turned off. On v0.0.3.7, a full upload finished but no picture appeared, and the connection dropped. Pictures upload on v0.0.5.2. You can update the firmware in the Anker app, but other features here haven't been tested on newer firmware.</p>
       {/if}
       {#if pictureKnown}
         <div class="row">

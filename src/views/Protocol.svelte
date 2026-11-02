@@ -143,7 +143,7 @@
       </tbody>
     </table>
   </div>
-  <p class="muted">"Tested" means an A2687 on firmware v0.0.3.7 reported the new value. "Untested" commands come from analysis of the official app, by the projects credited on the Help page.</p>
+  <p class="muted">"Tested" means an A2687 reported the new value, on firmware v0.0.3.7 and in part v0.0.5.2. "Untested" commands come from analysis of the official app, by the projects credited on the Help page.</p>
 
 {:else}
   <ul class="spaced">

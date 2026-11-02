@@ -8,6 +8,7 @@
   <h2>If connecting fails</h2>
   <ul>
     <li>Use Chrome, Edge or another Chromium browser on a computer. Firefox and Safari don't support Web Bluetooth.</li>
+    <li>The page reconnects by itself after a dropped connection. Reconnecting when you reopen the page needs a Chrome feature that may be behind <code>chrome://flags/#enable-web-bluetooth-new-permissions-backend</code>. Clicking Disconnect turns this off until you connect again.</li>
     <li>Fully quit the Anker app on your phone, or turn off the phone's Bluetooth. The charger takes one connection at a time.</li>
     <li>On Linux, if the browser says Web Bluetooth is unavailable, enable <code>chrome://flags/#enable-experimental-web-platform-features</code>.</li>
     <li>On Linux, if scans find nothing and the kernel log shows <code>Opcode 0x2041 failed: -16</code>, restart the adapter with <code>bluetoothctl power off</code>, then <code>bluetoothctl power on</code>.</li>
@@ -18,7 +19,7 @@
   <p>It only says a change worked if the charger then reports the new value. Otherwise it tells you it can't confirm the change.</p>
 
   <h2>Compared with the Anker app</h2>
-  <p>"Tested" means an A2687 on firmware v0.0.3.7 reported the new value after the change. Other firmware may behave differently.</p>
+  <p>"Tested" means an A2687 reported the new value after the change, on firmware v0.0.3.7 and in part v0.0.5.2. Other firmware may behave differently.</p>
   <div class="table-scroll">
     <table>
       <thead><tr><th>Feature</th><th>Here</th><th>Status</th></tr></thead>

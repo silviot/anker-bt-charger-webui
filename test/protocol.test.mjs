@@ -131,7 +131,25 @@ let moved = 0;
 await session.sendPicture(4242, crc, jpeg, (done) => (moved = done));
 assert.equal(moved, Math.ceil(2000 / 156));
 assert.deepEqual(sim.pictures.get(4242), jpeg);
-assert.equal((await session.snapshot()).pictureId, 4242);
+
+// Polling stops for the length of a transfer.
+const polling = session.poll(50);
+const before = frames.length;
+await new Promise((r) => setTimeout(r, 150));
+const seen = [];
+const onFrame = session.onFrame;
+session.onFrame = (f) => {
+  seen.push(f);
+  onFrame(f);
+};
+await session.sendPicture(4243, crc, jpeg);
+session.polling = false;
+await polling;
+session.onFrame = onFrame;
+const firstChunk = seen.findIndex((f) => f.dir === "tx" && f.frame.command === ff.CMD.PICTURE_START);
+assert.ok(firstChunk >= 0 && frames.length > before);
+assert.ok(seen.slice(firstChunk).filter((f) => f.dir === "tx").every((f) => f.frame.command !== 0x0200));
+assert.equal((await session.snapshot()).pictureId, 4243);
 
 // A changed ciphertext byte fails authentication.
 const cipher = new ff.Cipher();

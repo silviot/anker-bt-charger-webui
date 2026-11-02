@@ -1,4 +1,4 @@
-// What was checked on real hardware, in one place. "tested" means an A2687 on firmware v0.0.3.7
+// What was checked on real hardware, in one place. "tested" means an A2687 on firmware v0.0.3.7 or v0.0.5.2
 // reported the new value after the write. Keep this honest: it is shown to readers.
 
 export const STATUS = {
@@ -39,7 +39,7 @@ export const APP_FEATURES = [
   { name: "Fixed power sharing", status: "inferred", where: "Charging" },
   { name: "Custom charging mode", status: "inferred", where: "Charging", note: "Behind a warning. The format is inferred" },
   { name: "Device identification", status: "partial", where: "Charging", note: "No reply on v0.0.3.7" },
-  { name: "Custom lock-screen pictures", status: "reported", where: "Screen", note: "Failed on v0.0.3.7, so upload is off there. Reported working on v0.0.5.2. Stored in this browser, not in Anker's cloud" },
+  { name: "Custom lock-screen pictures", status: "partial", where: "Screen", note: "Off on v0.0.3.7, where it failed. On v0.0.5.2 the charger reports the new picture, but it may drop the connection afterwards. Stored in this browser, not in Anker's cloud" },
   { name: "Over-temperature and port fault warnings", status: "reported", where: "All views", note: "Never triggered here. The report layout isn't known, so the warning is generic" },
   { name: "Power history stored on the charger", status: "missing", note: "It replies, but the layout isn't worked out. This page charts its own two minutes instead" },
   { name: "Per-port protocol management", status: "missing", note: "The app gets this data from Anker's cloud" },

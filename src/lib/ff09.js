@@ -551,6 +551,17 @@ export class Session {
   // if chunks arrive without waiting for those acks.
   async sendPicture(id, crc, jpeg, onProgress = () => {}) {
     const count = Math.ceil(jpeg.length / PICTURE_CHUNK);
+    // No polling during a transfer: the official sequence sends only picture commands.
+    this.paused = true;
+    try {
+      await sleep(300);
+      await this.#sendChunks(id, crc, jpeg, count, onProgress);
+    } finally {
+      this.paused = false;
+    }
+  }
+
+  async #sendChunks(id, crc, jpeg, count, onProgress) {
     const started = await this.write(requests.pictureStart(id, crc, jpeg.length, count));
     if (started !== 0) throw new Error(`The charger refused the transfer (code 0x${started.toString(16)})`);
     await sleep(200);
@@ -579,6 +590,10 @@ export class Session {
     this.polling = true;
     let misses = 0;
     while (this.polling) {
+      if (this.paused) {
+        await sleep(100);
+        continue;
+      }
       try {
         await this.snapshot();
         misses = 0;
