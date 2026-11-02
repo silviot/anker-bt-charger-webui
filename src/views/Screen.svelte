@@ -38,22 +38,44 @@
     await set(CMD.BRIGHTNESS, +brightness, "brightness");
   }
 
-  // Crops to the middle square, then makes the 240 × 240 JPEG the charger uses.
-  async function choose(e) {
-    const file = e.currentTarget.files?.[0];
-    if (!file) return;
+  async function prepare(name, draw) {
     pictureOutcome = null;
-    const bitmap = await createImageBitmap(file);
-    const side = Math.min(bitmap.width, bitmap.height);
     const canvas = Object.assign(document.createElement("canvas"), { width: SIZE, height: SIZE });
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, SIZE, SIZE);
-    ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+    draw(ctx);
     const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.85));
     const jpeg = new Uint8Array(await blob.arrayBuffer());
-    draft = { url: canvas.toDataURL("image/jpeg", 0.85), jpeg, crc: crc32(jpeg), name: file.name };
+    draft = { url: canvas.toDataURL("image/jpeg", 0.85), jpeg, crc: crc32(jpeg), name };
   }
+
+  // Crops to the middle square, then makes the 240 × 240 JPEG the charger uses.
+  async function choose(e) {
+    const file = e.currentTarget.files?.[0];
+    if (!file) return;
+    const bitmap = await createImageBitmap(file);
+    const side = Math.min(bitmap.width, bitmap.height);
+    await prepare(file.name, (ctx) => ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE));
+  }
+
+  // The default picture: the white logo, centered on black.
+  async function useLogo() {
+    const img = new Image();
+    img.src = "codemyriad-logo.svg";
+    await img.decode();
+    const width = 208;
+    const height = (width * 28) / 150;
+    await prepare("Codemyriad logo", (ctx) => ctx.drawImage(img, (SIZE - width) / 2, (SIZE - height) / 2, width, height));
+  }
+
+  let offered = false;
+  $effect(() => {
+    if (pictureKnown && !offered) {
+      offered = true;
+      useLogo();
+    }
+  });
 
   const confirmed = (id) => (pictureKnown ? (s) => s.pictureId === (id & 0xffff) : null);
 
@@ -148,8 +170,9 @@
       {/if}
       {#if pictureKnown}
         <div class="row">
-          <label class="file">Choose a picture <input type="file" accept="image/*" onchange={choose} /></label>
-          <span class="muted">The middle of the picture is cropped to a square.</span>
+          <label class="file">Choose your own <input type="file" accept="image/*" onchange={choose} /></label>
+          <button onclick={useLogo}>Use the Codemyriad logo</button>
+          <span class="muted">Your own picture is cropped to its middle square.</span>
         </div>
         {#if draft}
           <div class="row">

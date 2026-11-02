@@ -66,8 +66,5 @@
 </main>
 
 <footer class="foot">
-  <div class="foot-row">
-    <a class="foot-logo" href="https://codemyriad.io"><img src="codemyriad-logo.svg" alt="Codemyriad" width="150" height="28" /></a>
-    <p>Not affiliated with or endorsed by Anker. Use only with devices you own. <a href="https://github.com/silviot/anker-bt-charger-webui">Source code</a></p>
-  </div>
+  <p>Not affiliated with or endorsed by Anker. Use only with devices you own. <a href="https://github.com/silviot/anker-bt-charger-webui">Source code</a></p>
 </footer>
