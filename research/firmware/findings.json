@@ -14,11 +14,31 @@
       "kind": "hardware_teardown",
       "source": "https://www.chargerlab.com/teardown-of-anker-prime-160w-charger-with-smart-display-a2687/",
       "components": [
-        {"part": "HC32F452KETB", "role": "display-board MCU", "architecture": "ARM Cortex-M4"},
-        {"part": "AB2026B3", "role": "Bluetooth SoC", "architecture": "RISC-V"},
-        {"part": "GD25Q128E", "role": "external NOR flash", "capacity_bytes": 16777216},
-        {"part": "TMS320F2800133", "role": "power conversion control", "architecture": "TI C28x"},
-        {"part": "SW2335H", "role": "per-port charging protocol controller", "architecture": "ARM Cortex-M0"}
+        {
+          "part": "HC32F452KETB",
+          "role": "display-board MCU",
+          "architecture": "ARM Cortex-M4"
+        },
+        {
+          "part": "AB2026B3",
+          "role": "Bluetooth SoC",
+          "architecture": "RISC-V"
+        },
+        {
+          "part": "GD25Q128E",
+          "role": "external NOR flash",
+          "capacity_bytes": 16777216
+        },
+        {
+          "part": "TMS320F2800133",
+          "role": "power conversion control",
+          "architecture": "TI C28x"
+        },
+        {
+          "part": "SW2335H",
+          "role": "per-port charging protocol controller",
+          "architecture": "ARM Cortex-M0"
+        }
       ],
       "limitation": "Reported for the teardown unit; not verified by opening this user's charger. Package partitioning and update coverage remain unknown."
     },
@@ -31,7 +51,10 @@
         "https://aiot-api-cn.anker.com.cn/app/ota/A2687/ALL/update/v0.0.0.0"
       ],
       "http_status": 401,
-      "response": {"code": 401, "msg": "token error"},
+      "response": {
+        "code": 401,
+        "msg": "token error"
+      },
       "limitation": "Authentication failed before payload validation; this does not establish a valid A2687 request schema or update availability. No serial or credentials were sent."
     },
     {
@@ -60,6 +83,11 @@
       "kind": "excluded_reference_firmware",
       "source": "https://github.com/atc1441/Anker_Prime_BLE_hacking/tree/7d0d5a0cb2ae37f66d0be2f4af4ff53dd405e962/Firmware_Files",
       "observation": "The four public v1.6.1/v1.6.2 backups target GD32F303 and TLSR8253 in an Anker 27650mAh power bank. They are not A2687 firmware and their vulnerabilities cannot be attributed to A2687."
+    },
+    {
+      "kind": "newer_complete_app_package_and_disassembly",
+      "report": "apk-3.25.0.json",
+      "observation": "No A2687 firmware image identified in the inspected Anker Power 3.25.0 package. Its A2687-specific update check uses cloud metadata; the shared BLE updater downloads a response-provided URL. This supports runtime download rather than a bundled update image."
     }
   ],
   "next_required_input": [

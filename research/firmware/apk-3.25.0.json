@@ -1,0 +1,146 @@
+{
+  "target": "Anker Prime 160W A2687",
+  "investigated_on": "2026-11-02",
+  "question": "Does the Android application bundle charger firmware?",
+  "conclusion": "No A2687 firmware image identified in the inspected Anker Power 3.25.0 package. Its A2687-specific update check uses cloud metadata; the shared BLE updater downloads a response-provided URL. This supports runtime download rather than a bundled update image.",
+  "firmware_obtained": false,
+  "scope": {
+    "package": "com.anker.charging",
+    "version_name": "3.25.0",
+    "version_code": 243,
+    "download_url": "https://d.apkpure.net/b/XAPK/com.anker.charging?versionCode=243&nc=armeabi-v7a&sv=26",
+    "local_xapk": "/tmp/anker-fw-research/Anker_3.25.0.xapk",
+    "xapk_bytes": 463737987,
+    "xapk_sha256": "d80def68c2f119a409dfb510e10567ea5dabf297ddb92ddea6e6b0b6bee539e3",
+    "verified_apks": [
+      {
+        "file": "base.apk",
+        "bytes": 128543790,
+        "sha256": "9520d0aa2292696762b82a804fb178e4b146816d2cf387e6929de7fcda2e1368",
+        "apksigner_exit": 0,
+        "signer_sha256": "64953080933c953e5d21579390374230baaba4b4deade33bbb4056129be75f8b"
+      },
+      {
+        "file": "config.armeabi_v7a.apk",
+        "bytes": 177839313,
+        "sha256": "195490abd3a0d6ddcbad4e38c9ef0fd586e5966e50d7546faeb3e0d11c546934",
+        "apksigner_exit": 0,
+        "signer_sha256": "64953080933c953e5d21579390374230baaba4b4deade33bbb4056129be75f8b"
+      },
+      {
+        "file": "config.en.apk",
+        "bytes": 115097,
+        "sha256": "4cb5daa0b442913c6332a5169cfd113898c7d2c406fcbdfd6d2739e346c5fc1b",
+        "apksigner_exit": 0,
+        "signer_sha256": "64953080933c953e5d21579390374230baaba4b4deade33bbb4056129be75f8b"
+      },
+      {
+        "file": "config.mdpi.apk",
+        "bytes": 96830,
+        "sha256": "9f5cfbdad6fa2f105919866cfb5fdb96087b0b1f93b5a0fdd76bd8b5300f1434",
+        "apksigner_exit": 0,
+        "signer_sha256": "64953080933c953e5d21579390374230baaba4b4deade33bbb4056129be75f8b"
+      },
+      {
+        "file": "flutter_assets_pack.apk",
+        "bytes": 156975190,
+        "sha256": "182b346918f2d81aa1f778cc8ba4e1815364729feda5d7a40b11bc5f37531524",
+        "apksigner_exit": 0,
+        "signer_sha256": "64953080933c953e5d21579390374230baaba4b4deade33bbb4056129be75f8b"
+      }
+    ],
+    "signer_matches_official_3_8_0": true,
+    "arm64_libraries": "Additionally retrieved libapp.so and libflutter.so from the arm64 variant of version code 243 for disassembly.",
+    "arm64_libapp_sha256": "e0d6332bd8ea9e56288938cc6cb9f63c2c6f265f21257a56bc30172ea3d5b381",
+    "dart_version": "3.11.0",
+    "dart_snapshot_hash": "78da37fed6bf1489361a312568249f3f"
+  },
+  "inventory": {
+    "file": "apk-3.25.0-inventory.json.gz",
+    "uncompressed_sha256": "2737761eb9fce73244448a193e6535045f9a461136fc18ff86306dea55cfd60b",
+    "entries_including_nested": 7128,
+    "uncompressed_bytes_including_nested": 563438670,
+    "nested_zip_archives": 102,
+    "observed_file_kinds": {
+      "other": 1501,
+      "text": 739,
+      "unity-metadata": 1,
+      "png": 4007,
+      "ttf": 13,
+      "zip": 102,
+      "otf": 1,
+      "riff": 220,
+      "elf": 49,
+      "gif": 475,
+      "unity": 17,
+      "dex": 1,
+      "jpeg": 2
+    },
+    "method": "Read every ZIP member, including the base APK, all supplied splits, the separate Flutter asset pack, and recursively nested ZIP archives. Reading members verifies their ZIP CRCs. Inspect magic, A2687 strings, and plausible Cortex-M vector tables in native/opaque payloads.",
+    "findings": [
+      "A2687 artwork is in flutter_assets_pack.apk; A2687 business code and updater symbols are in libapp.so.",
+      "The React Native archive contains JavaScript, images and an MD5 file; no identified charger update image.",
+      "AssetManifest.bin is Flutter asset metadata. DebugProbesKt.bin has a Java class header. Other small .bin files are protection/market metadata.",
+      "Other large payloads include Unity assets, machine-learning models, fonts, native Android libraries and iJiami app-protection data.",
+      "Four vector-pattern matches inside Android ELF libraries are heuristic false-positive leads, not identified firmware."
+    ]
+  },
+  "updater_trace": [
+    {
+      "function": "A2687FirmwareUpdateMenuController.requestOTAStatus",
+      "address": "0x2fb8048",
+      "assembly": "charging/ui/page/device/a2687/a2687setting/menu_controller/general/a2687_firmware_update_controller.dart",
+      "observation": "Calls HttpRequestControllerImpl.checkOTAUpdateWifi at call site 0x2fb8188, passing ALL as the module selector."
+    },
+    {
+      "function": "HttpRequestControllerImpl.checkOTAUpdateWifi",
+      "address": "0x257f29c",
+      "assembly": "charging/http/http_request_repository_impl.dart",
+      "observation": "Constructs /app/ota/<product>/ALL/update/<version>, assembles device_mac, sub_package, sub_ota_way, force_version and device_type fields, then calls encryptionRequestHttp at 0x257f690."
+    },
+    {
+      "function": "LastPackage.fromJson",
+      "address": "0x257fde4",
+      "assembly": "base_service/bean/model/ota_update_model.dart",
+      "observation": "Parses cloud package metadata including url (0x257ff50) and version (0x257ff80). FullPackage.fromJson separately reads file_path, file_size and file_md5."
+    },
+    {
+      "function": "AnkerBLEOTABaseLogic.download",
+      "address": "0x2781e68",
+      "assembly": "charging/ui/page/device/anker_ota/base/anker_ble_ota_base_logic.dart",
+      "observation": "Obtains the last-package URL from the update model, then calls HttpRequestController.downloadOta at 0x2782008."
+    },
+    {
+      "function": "HttpRequestControllerImpl.downloadOta",
+      "address": "0x2782230",
+      "assembly": "charging/http/http_request_repository_impl.dart",
+      "observation": "Creates a Dio HTTP client and calls DioForNative.download at 0x278231c."
+    },
+    {
+      "function": "AnkerBLEOTABaseLogic._createOTAFile",
+      "address": "0x3c0be84",
+      "assembly": "charging/ui/page/device/anker_ota/base/anker_ble_ota_base_logic.dart",
+      "observation": "Calls getApplicationDocumentsDirectory at 0x3c0beac, builds a device-dependent documents path ending /App.bin (0x3c0bfa4), and creates the file. App.bin is not an archive member."
+    },
+    {
+      "function": "HttpFirmwareProvider.queryFirmware",
+      "address": "0x2929c28",
+      "assembly": "ota_kit/src/services/http_firmware_provider.dart",
+      "observation": "The newer shared OTA kit builds a single-check HTTP path and sends a POST through akiot.cloud_api (0x2929e3c); its response is decoded into OtaUpdateModel."
+    }
+  ],
+  "limitations": [
+    "Static analysis cannot exclude encrypted firmware hidden inside an opaque asset or an untraced fallback. No complete unpacking of the protected Android Java implementation was performed.",
+    "The App.bin path belongs to a shared BLE updater. The A2687 menu also selects realProgressOTA or ota_wifi_and_ble routes according to device properties; this does not prove that every A2687 installation uses that cache filename.",
+    "This result concerns the inspected 3.25.0 package, not every app release, architecture or regional build.",
+    "Blutter reported an analysis warning in an unrelated function at 0x478ad10. The cited updater functions were exported and inspected; symbol recovery is not the original Dart source.",
+    "The first assembly export in /tmp reached a disk quota. A second export to the home filesystem completed. No app or firmware was run or installed."
+  ],
+  "tools": {
+    "blutter_repository": "https://github.com/worawit/blutter",
+    "blutter_commit": "4a60ac648bf448c5a7596437243bcd0b9376fdf0",
+    "complete_disassembly_directory": "/home/silvio/.cache/anker-fw-research/blutter-3.25.0/asm",
+    "apksigner": "Android SDK build-tools 36.0.0"
+  },
+  "next_acquisition_step": "Capture an authenticated A2687 OTA metadata response or recover the downloaded update from an existing app cache. The APK inspection has not supplied the charger firmware."
+}

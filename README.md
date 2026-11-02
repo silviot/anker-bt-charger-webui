@@ -29,7 +29,7 @@ One data point: I tested it on my own charger only (firmware v0.0.3.7). On it, p
 
 These are not tested, because they could interrupt charging: charging modes, fixed power sharing and custom mode. They come from other people's analysis of the official app, and the page says so next to each one.
 
-Custom pictures failed on v0.0.3.7: the upload finished, but no picture appeared and the connection dropped. The page turns upload off on firmware that doesn't report a current picture. After I updated to v0.0.5.2, the charger reports the new picture, though it may still drop the connection afterwards. Port switches and timers have only been tested on v0.0.3.7. The Help view has the full comparison with the app.
+Custom pictures failed on v0.0.3.7: the upload finished, but no picture appeared and the connection dropped. The page turns upload off on firmware that doesn't report a current picture. After I updated to v0.0.5.2, the charger reports the new picture, though it may still drop the connection afterwards. Screen brightness, port switches and timers also work on v0.0.5.2. The Help view has the full comparison with the app.
 
 These commands were reverse engineered, so a firmware update could change them. Firmware updates themselves are left out on purpose.
 
